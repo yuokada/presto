@@ -78,7 +78,7 @@ import com.facebook.presto.operator.scalar.CombineHashFunction;
 import com.facebook.presto.operator.scalar.DateTimeFunctions;
 import com.facebook.presto.operator.scalar.EmptyMapConstructor;
 import com.facebook.presto.operator.scalar.FailureFunction;
-import com.facebook.presto.operator.scalar.FormatUtilsFunctions;
+import com.facebook.presto.operator.scalar.FormatFunctions;
 import com.facebook.presto.operator.scalar.HyperLogLogFunctions;
 import com.facebook.presto.operator.scalar.JoniRegexpCasts;
 import com.facebook.presto.operator.scalar.JoniRegexpFunctions;
@@ -431,7 +431,7 @@ public class FunctionRegistry
                 .scalars(StringFunctions.class)
                 .scalars(VarbinaryFunctions.class)
                 .scalars(UrlFunctions.class)
-                .scalars(FormatUtilsFunctions.class)
+                .scalars(FormatFunctions.class)
                 .scalars(MathFunctions.class)
                 .scalar(MathFunctions.Abs.class)
                 .scalar(MathFunctions.Sign.class)
