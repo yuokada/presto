@@ -33,15 +33,16 @@ import java.util.Set;
 
 import static java.util.Objects.requireNonNull;
 
-public class GithubMetadata implements ConnectorMetadata
+public class GithubMetadata
+        implements ConnectorMetadata
 {
     private final String connectorId;
     private final GithubClient githubClient;
 
-    public GithubMetadata(String connectorId, GithubClient githubClient) {
+    public GithubMetadata(String connectorId, GithubClient githubClient)
+    {
         this.connectorId = requireNonNull(connectorId, "connectorId is null").toString();
         this.githubClient = requireNonNull(githubClient, "client is null");
-
     }
 
     @Override

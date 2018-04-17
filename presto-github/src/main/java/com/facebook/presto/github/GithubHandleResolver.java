@@ -34,7 +34,6 @@ public class GithubHandleResolver
         return null;
     }
 
-
     @Override
     public Class<? extends ColumnHandle> getColumnHandleClass()
     {

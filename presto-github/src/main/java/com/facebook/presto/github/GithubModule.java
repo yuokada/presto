@@ -26,12 +26,14 @@ import static com.facebook.presto.spi.type.TypeSignature.parseTypeSignature;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
-public class GithubModule implements Module
+public class GithubModule
+        implements Module
 {
     private final String connectorId;
     private final TypeManager typeManager;
 
-    public GithubModule(String connectorId, TypeManager typeManager) {
+    public GithubModule(String connectorId, TypeManager typeManager)
+    {
         this.connectorId = requireNonNull(connectorId, "connector id is null");
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
     }
@@ -62,5 +64,4 @@ public class GithubModule implements Module
             return type;
         }
     }
-
 }

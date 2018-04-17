@@ -26,8 +26,8 @@ import java.util.Map;
 
 import static java.util.Objects.requireNonNull;
 
-public class GithubConnectorFactory implements ConnectorFactory
-
+public class GithubConnectorFactory
+        implements ConnectorFactory
 {
     @Override
     public String getName()
@@ -62,6 +62,5 @@ public class GithubConnectorFactory implements ConnectorFactory
         catch (Exception e) {
             throw Throwables.propagate(e);
         }
-
     }
 }
