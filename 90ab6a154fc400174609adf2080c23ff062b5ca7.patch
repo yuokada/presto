@@ -1,0 +1,2314 @@
+From 90ab6a154fc400174609adf2080c23ff062b5ca7 Mon Sep 17 00:00:00 2001
+From: mjung <mjung@yahoo-corp.jp>
+Date: Tue, 1 Nov 2016 18:43:36 +0900
+Subject: [PATCH] =?UTF-8?q?github=20connector=E5=AE=9F=E8=A3=85?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ pom.xml                                            |   8 +
+ presto-github/pom.xml                              | 161 ++++++++++++++
+ .../GithubApiEndpoints.java                        |  59 ++++++
+ .../com.facebook.presto.github/GithubClient.java   | 236 +++++++++++++++++++++
+ .../com.facebook.presto.github/GithubColumn.java   |  79 +++++++
+ .../GithubColumnHandle.java                        | 108 ++++++++++
+ .../com.facebook.presto.github/GithubConfig.java   |  85 ++++++++
+ .../GithubConnector.java                           |  75 +++++++
+ .../GithubConnectorFactory.java                    |  66 ++++++
+ .../GithubConnectorId.java                         |  54 +++++
+ .../GithubHandleResolver.java                      |  55 +++++
+ .../com.facebook.presto.github/GithubMetadata.java | 191 +++++++++++++++++
+ .../com.facebook.presto.github/GithubModule.java   |  48 +++++
+ .../com.facebook.presto.github/GithubPlugin.java   |  41 ++++
+ .../GithubRecordCursor.java                        | 156 ++++++++++++++
+ .../GithubRecordSet.java                           |  60 ++++++
+ .../GithubRecordSetProvider.java                   |  59 ++++++
+ .../com.facebook.presto.github/GithubSchema.java   |  39 ++++
+ .../com.facebook.presto.github/GithubSplit.java    | 103 +++++++++
+ .../GithubSplitManager.java                        |  88 ++++++++
+ .../com.facebook.presto.github/GithubTable.java    |  67 ++++++
+ .../GithubTableHandle.java                         |  94 ++++++++
+ .../GithubTableLayoutHandle.java                   |  63 ++++++
+ .../GithubTransactionHandle.java                   |  23 ++
+ .../java/com.facebook.presto.github/Types.java     |  35 +++
+ presto-main/etc/catalog/github.properties          |  16 ++
+ presto-main/etc/config.properties                  |   3 +-
+ 27 files changed, 2071 insertions(+), 1 deletion(-)
+ create mode 100644 presto-github/pom.xml
+ create mode 100644 presto-github/src/main/java/com.facebook.presto.github/GithubApiEndpoints.java
+ create mode 100644 presto-github/src/main/java/com.facebook.presto.github/GithubClient.java
+ create mode 100644 presto-github/src/main/java/com.facebook.presto.github/GithubColumn.java
+ create mode 100644 presto-github/src/main/java/com.facebook.presto.github/GithubColumnHandle.java
+ create mode 100644 presto-github/src/main/java/com.facebook.presto.github/GithubConfig.java
+ create mode 100644 presto-github/src/main/java/com.facebook.presto.github/GithubConnector.java
+ create mode 100644 presto-github/src/main/java/com.facebook.presto.github/GithubConnectorFactory.java
+ create mode 100644 presto-github/src/main/java/com.facebook.presto.github/GithubConnectorId.java
+ create mode 100644 presto-github/src/main/java/com.facebook.presto.github/GithubHandleResolver.java
+ create mode 100644 presto-github/src/main/java/com.facebook.presto.github/GithubMetadata.java
+ create mode 100644 presto-github/src/main/java/com.facebook.presto.github/GithubModule.java
+ create mode 100644 presto-github/src/main/java/com.facebook.presto.github/GithubPlugin.java
+ create mode 100644 presto-github/src/main/java/com.facebook.presto.github/GithubRecordCursor.java
+ create mode 100644 presto-github/src/main/java/com.facebook.presto.github/GithubRecordSet.java
+ create mode 100644 presto-github/src/main/java/com.facebook.presto.github/GithubRecordSetProvider.java
+ create mode 100644 presto-github/src/main/java/com.facebook.presto.github/GithubSchema.java
+ create mode 100644 presto-github/src/main/java/com.facebook.presto.github/GithubSplit.java
+ create mode 100644 presto-github/src/main/java/com.facebook.presto.github/GithubSplitManager.java
+ create mode 100644 presto-github/src/main/java/com.facebook.presto.github/GithubTable.java
+ create mode 100644 presto-github/src/main/java/com.facebook.presto.github/GithubTableHandle.java
+ create mode 100644 presto-github/src/main/java/com.facebook.presto.github/GithubTableLayoutHandle.java
+ create mode 100644 presto-github/src/main/java/com.facebook.presto.github/GithubTransactionHandle.java
+ create mode 100644 presto-github/src/main/java/com.facebook.presto.github/Types.java
+ create mode 100644 presto-main/etc/catalog/github.properties
+
+diff --git a/pom.xml b/pom.xml
+index a07e2c100c..be0b72d313 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -91,6 +91,7 @@
+         <module>presto-hive-cdh5</module>
+         <module>presto-teradata-functions</module>
+         <module>presto-example-http</module>
++        <module>presto-github</module>
+         <module>presto-local-file</module>
+         <module>presto-tpch</module>
+         <module>presto-raptor</module>
+@@ -184,6 +185,13 @@
+ 
+             <dependency>
+                 <groupId>com.facebook.presto</groupId>
++                <artifactId>presto-github</artifactId>
++                <version>${project.version}</version>
++                <type>zip</type>
++            </dependency>
++
++            <dependency>
++                <groupId>com.facebook.presto</groupId>
+                 <artifactId>presto-local-file</artifactId>
+                 <version>${project.version}</version>
+             </dependency>
+diff --git a/presto-github/pom.xml b/presto-github/pom.xml
+new file mode 100644
+index 0000000000..74f1f29d9e
+--- /dev/null
++++ b/presto-github/pom.xml
+@@ -0,0 +1,161 @@
++<?xml version="1.0"?>
++<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
++    <modelVersion>4.0.0</modelVersion>
++    <parent>
++        <groupId>com.facebook.presto</groupId>
++        <artifactId>presto-root</artifactId>
++        <version>0.155-SNAPSHOT</version>
++    </parent>
++
++    <artifactId>presto-github</artifactId>
++    <description>Presto - Github Connector</description>
++    <packaging>presto-plugin</packaging>
++
++    <properties>
++        <air.main.basedir>${project.parent.basedir}</air.main.basedir>
++    </properties>
++
++    <dependencies>
++        <dependency>
++            <groupId>io.airlift</groupId>
++            <artifactId>bootstrap</artifactId>
++        </dependency>
++
++        <dependency>
++            <groupId>io.airlift</groupId>
++            <artifactId>json</artifactId>
++        </dependency>
++
++        <dependency>
++            <groupId>io.airlift</groupId>
++            <artifactId>log</artifactId>
++        </dependency>
++
++        <dependency>
++            <groupId>io.airlift</groupId>
++            <artifactId>configuration</artifactId>
++        </dependency>
++
++        <dependency>
++            <groupId>com.google.guava</groupId>
++            <artifactId>guava</artifactId>
++        </dependency>
++
++        <dependency>
++            <groupId>com.google.inject</groupId>
++            <artifactId>guice</artifactId>
++        </dependency>
++
++        <dependency>
++            <groupId>javax.validation</groupId>
++            <artifactId>validation-api</artifactId>
++        </dependency>
++
++        <dependency>
++            <groupId>javax.inject</groupId>
++            <artifactId>javax.inject</artifactId>
++        </dependency>
++
++        <dependency>
++            <groupId>com.fasterxml.jackson.core</groupId>
++            <artifactId>jackson-databind</artifactId>
++        </dependency>
++
++        <!-- Presto SPI -->
++        <dependency>
++            <groupId>com.facebook.presto</groupId>
++            <artifactId>presto-spi</artifactId>
++            <scope>provided</scope>
++        </dependency>
++
++        <dependency>
++            <groupId>io.airlift</groupId>
++            <artifactId>slice</artifactId>
++            <scope>provided</scope>
++        </dependency>
++
++        <dependency>
++            <groupId>io.airlift</groupId>
++            <artifactId>units</artifactId>
++            <scope>provided</scope>
++        </dependency>
++
++        <dependency>
++            <groupId>com.fasterxml.jackson.core</groupId>
++            <artifactId>jackson-annotations</artifactId>
++            <scope>provided</scope>
++        </dependency>
++
++        <dependency>
++            <groupId>com.fasterxml.jackson.core</groupId>
++            <artifactId>jackson-core</artifactId>
++        </dependency>
++
++        <dependency>
++            <groupId>com.github.fge</groupId>
++            <artifactId>uri-template</artifactId>
++            <version>0.9</version>
++            <exclusions>
++                <exclusion>
++                    <groupId>com.google.code.findbugs</groupId>
++                    <artifactId>jsr305</artifactId>
++                </exclusion>
++            </exclusions>
++        </dependency>
++
++        <dependency>
++            <groupId>org.eclipse.jetty</groupId>
++           	<artifactId>jetty-client</artifactId>
++           	<version>9.3.13.M0</version>
++        </dependency>
++
++        <dependency>
++            <groupId>org.eclipse.jetty</groupId>
++            <artifactId>jetty-http</artifactId>
++            <version>9.3.13.M0</version>
++        </dependency>
++
++        <dependency>
++            <groupId>org.eclipse.jetty</groupId>
++            <artifactId>jetty-util</artifactId>
++            <version>9.3.13.M0</version>
++        </dependency>
++
++        <!-- for testing -->
++        <dependency>
++            <groupId>com.facebook.presto</groupId>
++            <artifactId>presto-main</artifactId>
++            <scope>test</scope>
++        </dependency>
++
++        <dependency>
++            <groupId>org.testng</groupId>
++            <artifactId>testng</artifactId>
++            <scope>test</scope>
++        </dependency>
++
++        <dependency>
++            <groupId>io.airlift</groupId>
++            <artifactId>testing</artifactId>
++            <scope>test</scope>
++        </dependency>
++
++        <dependency>
++            <groupId>io.airlift</groupId>
++            <artifactId>http-server</artifactId>
++            <scope>test</scope>
++        </dependency>
++
++        <dependency>
++            <groupId>io.airlift</groupId>
++            <artifactId>node</artifactId>
++            <scope>test</scope>
++        </dependency>
++
++        <dependency>
++            <groupId>javax.servlet</groupId>
++            <artifactId>javax.servlet-api</artifactId>
++            <scope>test</scope>
++        </dependency>
++    </dependencies>
++</project>
+diff --git a/presto-github/src/main/java/com.facebook.presto.github/GithubApiEndpoints.java b/presto-github/src/main/java/com.facebook.presto.github/GithubApiEndpoints.java
+new file mode 100644
+index 0000000000..a8a2d130f0
+--- /dev/null
++++ b/presto-github/src/main/java/com.facebook.presto.github/GithubApiEndpoints.java
+@@ -0,0 +1,59 @@
++package com.facebook.presto.github;
++
++import com.fasterxml.jackson.annotation.JsonCreator;
++import com.fasterxml.jackson.annotation.JsonProperty;
++import com.github.fge.uritemplate.URITemplate;
++import com.github.fge.uritemplate.URITemplateParseException;
++
++/*
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++public class GithubApiEndpoints
++{
++    URITemplate userRepoTemplate;
++    URITemplate orgRepoTemplate;
++    URITemplate stargazersTemplate;
++
++    @JsonCreator
++    public GithubApiEndpoints(
++            @JsonProperty("user_repositories_url") String userRepoUriTemplate,
++            @JsonProperty("organization_repositories_url") String orgRepoUriTemplate)
++            throws URITemplateParseException
++    {
++        userRepoUriTemplate = userRepoUriTemplate.replace("https://", "https://{username}:{token}@").concat("?page=2");
++        this.userRepoTemplate = new URITemplate(userRepoUriTemplate);
++
++        orgRepoUriTemplate = orgRepoUriTemplate.replace("https://", "https://{username}:{token}@");
++        this.orgRepoTemplate = new URITemplate(orgRepoUriTemplate);
++
++        String stargazersTemplate = "https://api.git.corp.yahoo.co.jp/repos/{owner}/{repo}/stargazers";
++        stargazersTemplate = stargazersTemplate
++                .replace("https://", "https://{username}:{token}@");
++        this.stargazersTemplate = new URITemplate(stargazersTemplate);
++    }
++
++    public URITemplate getUserRepoTemplate()
++    {
++        return userRepoTemplate;
++    }
++
++    public URITemplate getOrgRepoTemplate()
++    {
++        return orgRepoTemplate;
++    }
++
++    public URITemplate getStargazersTemplate()
++    {
++        return stargazersTemplate;
++    }
++}
+diff --git a/presto-github/src/main/java/com.facebook.presto.github/GithubClient.java b/presto-github/src/main/java/com.facebook.presto.github/GithubClient.java
+new file mode 100644
+index 0000000000..1567df2013
+--- /dev/null
++++ b/presto-github/src/main/java/com.facebook.presto.github/GithubClient.java
+@@ -0,0 +1,236 @@
++package com.facebook.presto.github;
++/*
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++import com.facebook.presto.spi.PrestoException;
++import com.fasterxml.jackson.core.type.TypeReference;
++import com.fasterxml.jackson.databind.ObjectMapper;
++import com.github.fge.uritemplate.URITemplateException;
++import com.github.fge.uritemplate.vars.VariableMap;
++import com.google.common.base.Splitter;
++import com.google.common.base.Supplier;
++import com.google.common.base.Suppliers;
++import com.google.common.base.Throwables;
++import com.google.common.collect.ImmutableSet;
++import com.google.inject.Inject;
++import io.airlift.json.JsonCodec;
++import org.eclipse.jetty.client.HttpClient;
++import org.eclipse.jetty.client.api.ContentResponse;
++import org.eclipse.jetty.http.HttpFields;
++import org.eclipse.jetty.http.HttpHeader;
++import org.eclipse.jetty.http.HttpMethod;
++import org.eclipse.jetty.util.ssl.SslContextFactory;
++
++import java.io.IOException;
++import java.net.URI;
++import java.net.URISyntaxException;
++import java.util.ArrayList;
++import java.util.Base64;
++import java.util.List;
++import java.util.Map;
++import java.util.Set;
++import java.util.stream.Collectors;
++
++import static com.facebook.presto.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
++import static java.nio.charset.StandardCharsets.UTF_8;
++import static java.util.Objects.requireNonNull;
++
++public class GithubClient
++{
++    private final Supplier<GithubApiEndpoints> endpoints;
++    private final Supplier<List<GithubSchema>> schemas;
++    private final HttpClient httpClient;
++
++    @Inject
++    public GithubClient(
++            GithubConfig config,
++            JsonCodec<GithubApiEndpoints> apiCodec,
++            JsonCodec<List<GithubSchema>> schemaCodec)
++            throws Exception
++    {
++        requireNonNull(config, "config is null");
++        this.httpClient = new HttpClient(new SslContextFactory());
++        httpClient.start();
++        this.endpoints = Suppliers.memoize(endpointsSupplier(apiCodec, config));
++        this.schemas = Suppliers.memoize(schemasSupplier(schemaCodec, endpoints, config));
++    }
++
++    private static String getAuthHeader(String token)
++    {
++        String encoded = Base64.getEncoder().encodeToString(token.trim().getBytes(UTF_8));
++        return "Basic " + encoded;
++    }
++
++    public byte[] getContent(URI target, String token)
++    {
++        try {
++            ContentResponse response = httpClient.newRequest(target)
++                    .agent("presto-github-connector")
++                    .method(HttpMethod.GET)
++                    .header(HttpHeader.AUTHORIZATION, getAuthHeader(token))
++                    .send();
++
++            if (response.getStatus() != 200) {
++                throw new PrestoException(GENERIC_INTERNAL_ERROR, response.getReason());
++            }
++
++            return response.getContent();
++        }
++        catch (Exception e) {
++            throw new PrestoException(GENERIC_INTERNAL_ERROR, e);
++        }
++    }
++
++    public Set<String> getSchemaNames()
++    {
++        return schemas.get().stream().map(GithubSchema::getName).collect(Collectors.toSet());
++    }
++
++    public Set<String> getTableNames(String schema)
++    {
++        requireNonNull(schema, "schema is null");
++        if (!getSchemaNames().contains(schema)) {
++            return ImmutableSet.of();
++        }
++        return ImmutableSet.of("stargazers");   // hard code
++    }
++
++    public GithubTable getTable(String schema, String tableName)
++    {
++        requireNonNull(schema, "schema is null");
++        requireNonNull(tableName, "tableName is null");
++
++        return new GithubTable(endpoints.get().getStargazersTemplate());   // todo 後でなんとかする。
++    }
++
++    public HttpFields getHeaders(URI target, String token)
++    {
++        try {
++            ContentResponse response = httpClient.newRequest(target)
++                    .agent("presto-github-connector")
++                    .method(HttpMethod.GET)
++                    .header(HttpHeader.AUTHORIZATION, getAuthHeader(token))
++                    .send();
++
++            if (response.getStatus() != 200) {
++                throw new PrestoException(GENERIC_INTERNAL_ERROR, response.getReason());
++            }
++
++            return response.getHeaders();
++        }
++        catch (Exception e) {
++            throw new PrestoException(GENERIC_INTERNAL_ERROR, e);
++        }
++    }
++
++    public int getLastPage(URI uri, String token)
++    {
++        HttpFields headers = getHeaders(uri, token);
++        String links = headers.get("Link");
++        for (String link : Splitter.on(',').split(links)) {
++            if (!link.endsWith("rel=\"last\"")) {
++                continue;
++            }
++            List<String> parts = Splitter.on(' ').omitEmptyStrings().splitToList(link);
++            String target = parts.get(0);
++            int start = target.lastIndexOf('=') + 1;
++            int end = target.lastIndexOf('>');
++            String n = target.substring(start, end);
++            return Integer.parseInt(n);
++        }
++        return 1;
++    }
++
++    /**
++     * Given a string of bytes, returns a list of JSON objects represented by
++     * a map of key-value pairs.
++     */
++    public static List<Map<String, Object>> parseJsonBytesToRecordList(byte[] bytes)
++    {
++        String jsonLines = new String(bytes, UTF_8);
++
++        ObjectMapper objectMapper = new ObjectMapper();
++        try {
++            return ((ArrayList<Map<String, Object>>) objectMapper.readValue(jsonLines, new TypeReference<ArrayList<Map<String, Object>>>() {}));
++        }
++        catch (IOException e) {
++            throw new PrestoException(GENERIC_INTERNAL_ERROR, e);
++        }
++    }
++
++    private Supplier<GithubApiEndpoints> endpointsSupplier(
++            final JsonCodec<GithubApiEndpoints> apiCodec, final GithubConfig config)
++            throws URITemplateException, URISyntaxException
++    {
++        VariableMap variables = VariableMap.newBuilder()
++                .addScalarValue("user", config.getOwner())
++                .addScalarValue("org", config.getOwner())
++                .addScalarValue("username", config.getUsername())
++                .addScalarValue("token", config.getToken())
++                .freeze();
++
++        URI apiRootUri = config.getApiRoot().toURI(variables);
++        return () -> {
++            try {
++                return lookupEndpoints(apiRootUri, config.getToken(), apiCodec);
++            }
++            catch (IOException e) {
++                throw Throwables.propagate(e);
++            }
++        };
++    }
++
++    private GithubApiEndpoints lookupEndpoints(URI apiRootUri, String token,
++            JsonCodec<GithubApiEndpoints> catalogCodec)
++            throws IOException
++    {
++        byte[] json = getContent(apiRootUri, token);
++        return catalogCodec.fromJson(json);
++    }
++
++    private Supplier<List<GithubSchema>> schemasSupplier(
++            final JsonCodec<List<GithubSchema>> schmemaCodec,
++            final Supplier<GithubApiEndpoints> endpoints,
++            final GithubConfig config)
++            throws URITemplateException, URISyntaxException
++    {
++        VariableMap variables = VariableMap.newBuilder()
++                .addScalarValue("user", config.getOwner())
++                .addScalarValue("org", config.getOwner())
++                .addScalarValue("username", config.getUsername())
++                .addScalarValue("token", config.getToken())
++                .freeze();
++
++        URI schemaUri = endpoints.get().getUserRepoTemplate().toURI(variables);
++
++        return () -> {
++            try {
++                return lookupSchemas(schemaUri, config.getToken(), schmemaCodec);
++            }
++            catch (IOException e) {
++                throw Throwables.propagate(e);
++            }
++        };
++    }
++
++    private List<GithubSchema> lookupSchemas(URI schemaUri, String token,
++            JsonCodec<List<GithubSchema>> schemaCodec)
++            throws IOException
++    {
++        // Step 2 -- Use the GitHub REST API to retrieve the repositories (you may need to change
++        // the above method as well). You can use lookupEndpoints as a reference.
++        byte[] json = getContent(schemaUri, token);
++        return schemaCodec.fromJson(json);
++    }
++}
+diff --git a/presto-github/src/main/java/com.facebook.presto.github/GithubColumn.java b/presto-github/src/main/java/com.facebook.presto.github/GithubColumn.java
+new file mode 100644
+index 0000000000..26baf3bb87
+--- /dev/null
++++ b/presto-github/src/main/java/com.facebook.presto.github/GithubColumn.java
+@@ -0,0 +1,79 @@
++package com.facebook.presto.github;
++/*
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++import com.facebook.presto.spi.type.Type;
++import com.fasterxml.jackson.annotation.JsonCreator;
++import com.fasterxml.jackson.annotation.JsonProperty;
++
++import java.util.Objects;
++
++import static com.google.common.base.Preconditions.checkArgument;
++import static com.google.common.base.Strings.isNullOrEmpty;
++import static java.util.Objects.requireNonNull;
++
++public class GithubColumn
++{
++    private final String name;
++    private final Type type;
++
++    @JsonCreator
++    public GithubColumn(
++            @JsonProperty("name") String name,
++            @JsonProperty("type") Type type)
++    {
++        checkArgument(!isNullOrEmpty(name), "name is null or is empty");
++        this.name = name;
++        this.type = requireNonNull(type, "type is null");
++    }
++
++    @JsonProperty
++    public String getName()
++    {
++        return name;
++    }
++
++    @JsonProperty
++    public Type getType()
++    {
++        return type;
++    }
++
++    @Override
++    public int hashCode()
++    {
++        return Objects.hash(name, type);
++    }
++
++    @Override
++    public boolean equals(Object obj)
++    {
++        if (this == obj) {
++            return true;
++        }
++        if (obj == null || getClass() != obj.getClass()) {
++            return false;
++        }
++
++        GithubColumn other = (GithubColumn) obj;
++        return Objects.equals(this.name, other.name) &&
++                Objects.equals(this.type, other.type);
++    }
++
++    @Override
++    public String toString()
++    {
++        return name + ":" + type;
++    }
++}
+diff --git a/presto-github/src/main/java/com.facebook.presto.github/GithubColumnHandle.java b/presto-github/src/main/java/com.facebook.presto.github/GithubColumnHandle.java
+new file mode 100644
+index 0000000000..6d67d9f5db
+--- /dev/null
++++ b/presto-github/src/main/java/com.facebook.presto.github/GithubColumnHandle.java
+@@ -0,0 +1,108 @@
++package com.facebook.presto.github;
++/*
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++import com.facebook.presto.spi.ColumnHandle;
++import com.facebook.presto.spi.ColumnMetadata;
++import com.facebook.presto.spi.type.Type;
++import com.fasterxml.jackson.annotation.JsonCreator;
++import com.fasterxml.jackson.annotation.JsonProperty;
++
++import java.util.Objects;
++
++import static com.google.common.base.MoreObjects.toStringHelper;
++import static java.util.Objects.requireNonNull;
++
++public class GithubColumnHandle
++        implements ColumnHandle
++{
++    private final String connectorId;
++    private final String columnName;
++    private final Type columnType;
++    private final int ordinalPosition;
++
++    @JsonCreator
++    public GithubColumnHandle(
++            @JsonProperty("connectorId") String connectorId,
++            @JsonProperty("columnName") String columnName,
++            @JsonProperty("columnType") Type columnType,
++            @JsonProperty("ordinalPosition") int ordinalPosition)
++    {
++        this.connectorId = requireNonNull(connectorId, "connectorId is null");
++        this.columnName = requireNonNull(columnName, "columnName is null");
++        this.columnType = requireNonNull(columnType, "columnType is null");
++        this.ordinalPosition = ordinalPosition;
++    }
++
++    @JsonProperty
++    public String getConnectorId()
++    {
++        return connectorId;
++    }
++
++    @JsonProperty
++    public String getColumnName()
++    {
++        return columnName;
++    }
++
++    @JsonProperty
++    public Type getColumnType()
++    {
++        return columnType;
++    }
++
++    @JsonProperty
++    public int getOrdinalPosition()
++    {
++        return ordinalPosition;
++    }
++
++    public ColumnMetadata getColumnMetadata()
++    {
++        return new ColumnMetadata(columnName, columnType);
++    }
++
++    @Override
++    public int hashCode()
++    {
++        return Objects.hash(connectorId, columnName);
++    }
++
++    @Override
++    public boolean equals(Object obj)
++    {
++        if (this == obj) {
++            return true;
++        }
++        if ((obj == null) || (getClass() != obj.getClass())) {
++            return false;
++        }
++
++        GithubColumnHandle other = (GithubColumnHandle) obj;
++        return Objects.equals(this.connectorId, other.connectorId) &&
++                Objects.equals(this.columnName, other.columnName);
++    }
++
++    @Override
++    public String toString()
++    {
++        return toStringHelper(this)
++                .add("connectorId", connectorId)
++                .add("columnName", columnName)
++                .add("columnType", columnType)
++                .add("ordinalPosition", ordinalPosition)
++                .toString();
++    }
++}
+diff --git a/presto-github/src/main/java/com.facebook.presto.github/GithubConfig.java b/presto-github/src/main/java/com.facebook.presto.github/GithubConfig.java
+new file mode 100644
+index 0000000000..d1276d50d8
+--- /dev/null
++++ b/presto-github/src/main/java/com.facebook.presto.github/GithubConfig.java
+@@ -0,0 +1,85 @@
++package com.facebook.presto.github;
++/*
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++import com.github.fge.uritemplate.URITemplate;
++import com.github.fge.uritemplate.URITemplateParseException;
++import io.airlift.configuration.Config;
++
++import javax.validation.constraints.NotNull;
++
++public class GithubConfig
++{
++    private URITemplate apiRoot = new URITemplate("https://{username}:{token}@api.github.com");
++    private String owner;
++    private String username;
++    private String token;
++
++    public GithubConfig()
++            throws URITemplateParseException
++    {}
++
++    @NotNull
++    public URITemplate getApiRoot()
++    {
++        return apiRoot;
++    }
++
++    @NotNull
++    public String getOwner()
++    {
++        return owner;
++    }
++
++    @NotNull
++    public String getUsername()
++    {
++        return username;
++    }
++
++    @NotNull
++    public String getToken()
++    {
++        return token;
++    }
++
++    @Config("github-apiroot")
++    public GithubConfig setApiRoot(String apiRoot)
++            throws URITemplateParseException
++    {
++        this.apiRoot = new URITemplate(apiRoot.replace("https://", "https://{username}:{token}@"));
++        return this;
++    }
++
++    @Config("github-owner")
++    public GithubConfig setOwner(String owner)
++    {
++        this.owner = owner;
++        return this;
++    }
++
++    @Config("github-username")
++    public GithubConfig setUsername(String username)
++    {
++        this.username = username;
++        return this;
++    }
++
++    @Config("github-token")
++    public GithubConfig setToken(String token)
++    {
++        this.token = token;
++        return this;
++    }
++}
+diff --git a/presto-github/src/main/java/com.facebook.presto.github/GithubConnector.java b/presto-github/src/main/java/com.facebook.presto.github/GithubConnector.java
+new file mode 100644
+index 0000000000..cc051197db
+--- /dev/null
++++ b/presto-github/src/main/java/com.facebook.presto.github/GithubConnector.java
+@@ -0,0 +1,75 @@
++package com.facebook.presto.github;
++/*
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++import com.facebook.presto.spi.connector.Connector;
++import com.facebook.presto.spi.connector.ConnectorMetadata;
++import com.facebook.presto.spi.connector.ConnectorRecordSetProvider;
++import com.facebook.presto.spi.connector.ConnectorSplitManager;
++import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
++import com.facebook.presto.spi.transaction.IsolationLevel;
++import io.airlift.bootstrap.LifeCycleManager;
++import io.airlift.log.Logger;
++
++import javax.inject.Inject;
++
++import static com.facebook.presto.github.GithubTransactionHandle.INSTANCE;
++import static java.util.Objects.requireNonNull;
++
++public class GithubConnector
++        implements Connector
++{
++    private static final Logger log = Logger.get(GithubConnector.class);
++
++    private final LifeCycleManager lifeCycleManager;
++    private final GithubMetadata metadata;
++    private final GithubSplitManager splitManager;
++    private final GithubRecordSetProvider recordSetProvider;
++
++    @Inject
++    public GithubConnector(
++            LifeCycleManager lifeCycleManager,
++            GithubMetadata metadata,
++            GithubSplitManager splitManager,
++            GithubRecordSetProvider recordSetProvider)
++    {
++        this.lifeCycleManager = requireNonNull(lifeCycleManager, "lifeCycleManager is null");
++        this.metadata = requireNonNull(metadata, "metadata is null");
++        this.splitManager = requireNonNull(splitManager, "splitManager is null");
++        this.recordSetProvider = requireNonNull(recordSetProvider, "recordSetProvider is null");
++    }
++
++    @Override
++    public ConnectorTransactionHandle beginTransaction(IsolationLevel isolationLevel, boolean readOnly)
++    {
++        return INSTANCE;
++    }
++
++    @Override
++    public ConnectorMetadata getMetadata(ConnectorTransactionHandle transactionHandle)
++    {
++        return metadata;
++    }
++
++    @Override
++    public ConnectorSplitManager getSplitManager()
++    {
++        return splitManager;
++    }
++
++    @Override
++    public ConnectorRecordSetProvider getRecordSetProvider()
++    {
++        return recordSetProvider;
++    }
++}
+diff --git a/presto-github/src/main/java/com.facebook.presto.github/GithubConnectorFactory.java b/presto-github/src/main/java/com.facebook.presto.github/GithubConnectorFactory.java
+new file mode 100644
+index 0000000000..2f3c687676
+--- /dev/null
++++ b/presto-github/src/main/java/com.facebook.presto.github/GithubConnectorFactory.java
+@@ -0,0 +1,66 @@
++package com.facebook.presto.github;
++/*
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++import com.facebook.presto.spi.ConnectorHandleResolver;
++import com.facebook.presto.spi.connector.Connector;
++import com.facebook.presto.spi.connector.ConnectorContext;
++import com.facebook.presto.spi.connector.ConnectorFactory;
++import com.google.common.base.Throwables;
++import com.google.inject.Injector;
++import io.airlift.bootstrap.Bootstrap;
++import io.airlift.json.JsonModule;
++
++import java.util.Map;
++
++import static java.util.Objects.requireNonNull;
++
++public class GithubConnectorFactory
++        implements ConnectorFactory
++{
++    @Override
++    public String getName()
++    {
++        return "github";
++    }
++
++    @Override
++    public ConnectorHandleResolver getHandleResolver()
++    {
++        return new GithubHandleResolver();
++    }
++
++    @Override
++    public Connector create(final String connectorId, Map<String, String> requiredConfig, ConnectorContext context)
++    {
++        requireNonNull(requiredConfig, "requiredConfig is null");
++        try {
++            // A plugin is not required to use Guice; it is just very convenient
++            Bootstrap app = new Bootstrap(
++                    new JsonModule(),
++                    new GithubModule(connectorId));
++
++            Injector injector = app
++                    .strictConfig()
++                    .doNotInitializeLogging()
++                    .setRequiredConfigurationProperties(requiredConfig)
++                    .initialize();
++
++            return injector.getInstance(GithubConnector.class);
++        }
++        catch (Exception e) {
++            throw Throwables.propagate(e);
++        }
++    }
++}
+diff --git a/presto-github/src/main/java/com.facebook.presto.github/GithubConnectorId.java b/presto-github/src/main/java/com.facebook.presto.github/GithubConnectorId.java
+new file mode 100644
+index 0000000000..fecaccf4e8
+--- /dev/null
++++ b/presto-github/src/main/java/com.facebook.presto.github/GithubConnectorId.java
+@@ -0,0 +1,54 @@
++package com.facebook.presto.github;
++/*
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++import java.util.Objects;
++
++import static java.util.Objects.requireNonNull;
++
++public final class GithubConnectorId
++{
++    private final String id;
++
++    public GithubConnectorId(String id)
++    {
++        this.id = requireNonNull(id, "id is null");
++    }
++
++    @Override
++    public String toString()
++    {
++        return id;
++    }
++
++    @Override
++    public int hashCode()
++    {
++        return Objects.hash(id);
++    }
++
++    @Override
++    public boolean equals(Object obj)
++    {
++        if (this == obj) {
++            return true;
++        }
++        if ((obj == null) || (getClass() != obj.getClass())) {
++            return false;
++        }
++
++        GithubConnectorId other = (GithubConnectorId) obj;
++        return Objects.equals(this.id, other.id);
++    }
++}
+diff --git a/presto-github/src/main/java/com.facebook.presto.github/GithubHandleResolver.java b/presto-github/src/main/java/com.facebook.presto.github/GithubHandleResolver.java
+new file mode 100644
+index 0000000000..9b43499ec3
+--- /dev/null
++++ b/presto-github/src/main/java/com.facebook.presto.github/GithubHandleResolver.java
+@@ -0,0 +1,55 @@
++/*
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package com.facebook.presto.github;
++
++import com.facebook.presto.spi.ColumnHandle;
++import com.facebook.presto.spi.ConnectorHandleResolver;
++import com.facebook.presto.spi.ConnectorSplit;
++import com.facebook.presto.spi.ConnectorTableHandle;
++import com.facebook.presto.spi.ConnectorTableLayoutHandle;
++import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
++
++public class GithubHandleResolver
++        implements ConnectorHandleResolver
++{
++    @Override
++    public Class<? extends ConnectorTableLayoutHandle> getTableLayoutHandleClass()
++    {
++        return GithubTableLayoutHandle.class;
++    }
++
++    @Override
++    public Class<? extends ConnectorTableHandle> getTableHandleClass()
++    {
++        return GithubTableHandle.class;
++    }
++
++    @Override
++    public Class<? extends ColumnHandle> getColumnHandleClass()
++    {
++        return GithubColumnHandle.class;
++    }
++
++    @Override
++    public Class<? extends ConnectorSplit> getSplitClass()
++    {
++        return GithubSplit.class;
++    }
++
++    @Override
++    public Class<? extends ConnectorTransactionHandle> getTransactionHandleClass()
++    {
++        return GithubTransactionHandle.class;
++    }
++}
+diff --git a/presto-github/src/main/java/com.facebook.presto.github/GithubMetadata.java b/presto-github/src/main/java/com.facebook.presto.github/GithubMetadata.java
+new file mode 100644
+index 0000000000..21872ebb71
+--- /dev/null
++++ b/presto-github/src/main/java/com.facebook.presto.github/GithubMetadata.java
+@@ -0,0 +1,191 @@
++/*
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package com.facebook.presto.github;
++
++import com.facebook.presto.spi.ColumnHandle;
++import com.facebook.presto.spi.ColumnMetadata;
++import com.facebook.presto.spi.ConnectorSession;
++import com.facebook.presto.spi.ConnectorTableHandle;
++import com.facebook.presto.spi.ConnectorTableLayout;
++import com.facebook.presto.spi.ConnectorTableLayoutHandle;
++import com.facebook.presto.spi.ConnectorTableLayoutResult;
++import com.facebook.presto.spi.ConnectorTableMetadata;
++import com.facebook.presto.spi.Constraint;
++import com.facebook.presto.spi.SchemaTableName;
++import com.facebook.presto.spi.SchemaTablePrefix;
++import com.facebook.presto.spi.TableNotFoundException;
++import com.facebook.presto.spi.connector.ConnectorMetadata;
++import com.google.common.collect.ImmutableList;
++import com.google.common.collect.ImmutableMap;
++import com.google.common.collect.ImmutableSet;
++
++import javax.inject.Inject;
++
++import java.util.List;
++import java.util.Map;
++import java.util.Optional;
++import java.util.Set;
++
++import static com.facebook.presto.github.Types.checkType;
++import static com.google.common.base.Preconditions.checkArgument;
++import static java.util.Objects.requireNonNull;
++
++public class GithubMetadata
++        implements ConnectorMetadata
++{
++    private final String connectorId;
++
++    private final GithubClient githubClient;
++
++    @Inject
++    public GithubMetadata(GithubConnectorId connectorId, GithubClient githubClient)
++    {
++        this.connectorId = requireNonNull(connectorId, "connectorId is null").toString();
++        this.githubClient = requireNonNull(githubClient, "client is null");
++    }
++
++    @Override
++    public List<String> listSchemaNames(ConnectorSession session)
++    {
++        return listSchemaNames();
++    }
++
++    public List<String> listSchemaNames()
++    {
++        return ImmutableList.copyOf(githubClient.getSchemaNames());
++    }
++
++    @Override
++    public ConnectorTableHandle getTableHandle(ConnectorSession session, SchemaTableName tableName)
++    {
++        if (!listSchemaNames(session).contains(tableName.getSchemaName())) {
++            return null;
++        }
++
++        GithubTable table = githubClient.getTable(tableName.getSchemaName(), tableName.getTableName());
++        if (table == null) {
++            return null;
++        }
++
++        return new GithubTableHandle(connectorId, tableName.getSchemaName(), tableName.getTableName());
++    }
++
++    @Override
++    public List<ConnectorTableLayoutResult> getTableLayouts(ConnectorSession session, ConnectorTableHandle table, Constraint<ColumnHandle> constraint, Optional<Set<ColumnHandle>> desiredColumns)
++    {
++        GithubTableHandle tableHandle = checkType(table, GithubTableHandle.class, "table");
++        ConnectorTableLayout layout = new ConnectorTableLayout(new GithubTableLayoutHandle(tableHandle));
++        return ImmutableList.of(new ConnectorTableLayoutResult(layout, constraint.getSummary()));
++    }
++
++    @Override
++    public ConnectorTableLayout getTableLayout(ConnectorSession session, ConnectorTableLayoutHandle handle)
++    {
++        return new ConnectorTableLayout(handle);
++    }
++
++    @Override
++    public ConnectorTableMetadata getTableMetadata(ConnectorSession session, ConnectorTableHandle table)
++    {
++        GithubTableHandle githubeTableHandle = checkType(table, GithubTableHandle.class, "table");
++        checkArgument(githubeTableHandle.getConnectorId().equals(connectorId), "tableHandle is not for this connector");
++        SchemaTableName tableName = new SchemaTableName(githubeTableHandle.getSchemaName(), githubeTableHandle.getTableName());
++
++        return getTableMetadata(tableName);
++    }
++
++    @Override
++    public List<SchemaTableName> listTables(ConnectorSession session, String schemaNameOrNull)
++    {
++        Set<String> schemaNames;
++        if (schemaNameOrNull != null) {
++            schemaNames = ImmutableSet.of(schemaNameOrNull);
++        }
++        else {
++            schemaNames = githubClient.getSchemaNames();
++        }
++
++        ImmutableList.Builder<SchemaTableName> builder = ImmutableList.builder();
++        for (String schemaName : schemaNames) {
++            for (String tableName : githubClient.getTableNames(schemaName)) {
++                builder.add(new SchemaTableName(schemaName, tableName));
++            }
++        }
++        return builder.build();
++    }
++
++    @Override
++    public Map<String, ColumnHandle> getColumnHandles(ConnectorSession session, ConnectorTableHandle tableHandle)
++    {
++        GithubTableHandle githubTableHandle = checkType(tableHandle, GithubTableHandle.class, "tableHandle");
++        checkArgument(githubTableHandle.getConnectorId().equals(connectorId), "tableHandle is not for this connector");
++
++        GithubTable table = githubClient.getTable(githubTableHandle.getSchemaName(), githubTableHandle.getTableName());
++        if (table == null) {
++            throw new TableNotFoundException(githubTableHandle.toSchemaTableName());
++        }
++
++        ImmutableMap.Builder<String, ColumnHandle> columnHandles = ImmutableMap.builder();
++        int index = 0;
++        for (ColumnMetadata column : table.getColumnsMetadata()) {
++            columnHandles.put(column.getName(), new GithubColumnHandle(connectorId, column.getName(), column.getType(), index));
++            index++;
++        }
++        return columnHandles.build();
++    }
++
++    @Override
++    public ColumnMetadata getColumnMetadata(ConnectorSession session, ConnectorTableHandle tableHandle, ColumnHandle columnHandle)
++    {
++        checkType(tableHandle, GithubTableHandle.class, "tableHandle");
++        return checkType(columnHandle, GithubColumnHandle.class, "columnHandle").getColumnMetadata();
++    }
++
++    @Override
++    public Map<SchemaTableName, List<ColumnMetadata>> listTableColumns(ConnectorSession session, SchemaTablePrefix prefix)
++    {
++        requireNonNull(prefix, "prefix is null");
++        ImmutableMap.Builder<SchemaTableName, List<ColumnMetadata>> columns = ImmutableMap.builder();
++        for (SchemaTableName tableName : listTables(session, prefix)) {
++            ConnectorTableMetadata tableMetadata = getTableMetadata(tableName);
++            // table can disappear during listing operation
++            if (tableMetadata != null) {
++                columns.put(tableName, tableMetadata.getColumns());
++            }
++        }
++        return columns.build();
++    }
++
++    private List<SchemaTableName> listTables(ConnectorSession session, SchemaTablePrefix prefix)
++    {
++        if (prefix.getSchemaName() == null) {
++            return listTables(session, prefix.getSchemaName());
++        }
++        return ImmutableList.of(new SchemaTableName(prefix.getSchemaName(), prefix.getTableName()));
++    }
++
++    private ConnectorTableMetadata getTableMetadata(SchemaTableName tableName)
++    {
++        if (!listSchemaNames().contains(tableName.getSchemaName())) {
++            return null;
++        }
++
++        GithubTable table = githubClient.getTable(tableName.getSchemaName(), tableName.getTableName());
++        if (table == null) {
++            return null;
++        }
++
++        return new ConnectorTableMetadata(tableName, table.getColumnsMetadata());
++    }
++}
+diff --git a/presto-github/src/main/java/com.facebook.presto.github/GithubModule.java b/presto-github/src/main/java/com.facebook.presto.github/GithubModule.java
+new file mode 100644
+index 0000000000..ca8d9c5f7d
+--- /dev/null
++++ b/presto-github/src/main/java/com.facebook.presto.github/GithubModule.java
+@@ -0,0 +1,48 @@
++package com.facebook.presto.github;
++/*
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++import com.google.inject.Binder;
++import com.google.inject.Module;
++import com.google.inject.Scopes;
++
++import static io.airlift.configuration.ConfigBinder.configBinder;
++import static io.airlift.json.JsonCodecBinder.jsonCodecBinder;
++import static java.util.Objects.requireNonNull;
++
++public class GithubModule
++        implements Module
++{
++    private final String connectorId;
++
++    public GithubModule(String connectorId)
++    {
++        this.connectorId = requireNonNull(connectorId, "connector id is null");
++    }
++
++    @Override
++    public void configure(Binder binder)
++    {
++        binder.bind(GithubConnector.class).in(Scopes.SINGLETON);
++        binder.bind(GithubConnectorId.class).toInstance(new GithubConnectorId(connectorId));
++        binder.bind(GithubMetadata.class).in(Scopes.SINGLETON);
++        binder.bind(GithubClient.class).in(Scopes.SINGLETON);
++        binder.bind(GithubSplitManager.class).in(Scopes.SINGLETON);
++        binder.bind(GithubRecordSetProvider.class).in(Scopes.SINGLETON);
++        configBinder(binder).bindConfig(GithubConfig.class);
++
++        jsonCodecBinder(binder).bindJsonCodec(GithubApiEndpoints.class);
++        jsonCodecBinder(binder).bindListJsonCodec(GithubSchema.class);
++    }
++}
+diff --git a/presto-github/src/main/java/com.facebook.presto.github/GithubPlugin.java b/presto-github/src/main/java/com.facebook.presto.github/GithubPlugin.java
+new file mode 100644
+index 0000000000..92db1afafb
+--- /dev/null
++++ b/presto-github/src/main/java/com.facebook.presto.github/GithubPlugin.java
+@@ -0,0 +1,41 @@
++/*
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package com.facebook.presto.github;
++/*
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++import com.facebook.presto.spi.Plugin;
++import com.facebook.presto.spi.connector.ConnectorFactory;
++import com.google.common.collect.ImmutableList;
++
++public class GithubPlugin
++        implements Plugin
++{
++    @Override
++    public Iterable<ConnectorFactory> getConnectorFactories()
++    {
++        return ImmutableList.of(new GithubConnectorFactory());
++    }
++}
+diff --git a/presto-github/src/main/java/com.facebook.presto.github/GithubRecordCursor.java b/presto-github/src/main/java/com.facebook.presto.github/GithubRecordCursor.java
+new file mode 100644
+index 0000000000..244e8d436f
+--- /dev/null
++++ b/presto-github/src/main/java/com.facebook.presto.github/GithubRecordCursor.java
+@@ -0,0 +1,156 @@
++/*
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package com.facebook.presto.github;
++
++import com.facebook.presto.spi.RecordCursor;
++import com.facebook.presto.spi.type.Type;
++import com.google.common.base.Strings;
++import io.airlift.slice.Slice;
++import io.airlift.slice.Slices;
++
++import java.net.URI;
++import java.util.Iterator;
++import java.util.List;
++import java.util.Map;
++
++import static com.facebook.presto.spi.type.BigintType.BIGINT;
++import static com.facebook.presto.spi.type.BooleanType.BOOLEAN;
++import static com.facebook.presto.spi.type.DoubleType.DOUBLE;
++import static com.facebook.presto.spi.type.VarcharType.createUnboundedVarcharType;
++import static com.google.common.base.Preconditions.checkArgument;
++import static com.google.common.base.Preconditions.checkState;
++
++public class GithubRecordCursor
++        implements RecordCursor
++{
++    private final List<GithubColumnHandle> columnHandles;
++    private final String[] fieldToColumnName;
++
++    private final Iterator<Map<String, Object>> rows;
++    private final long totalBytes;
++
++    private Map<String, Object> row;
++
++    public GithubRecordCursor(List<GithubColumnHandle> columnHandles, GithubClient client, URI sourceUri, String token)
++    {
++        this.columnHandles = columnHandles;
++
++        fieldToColumnName = new String[columnHandles.size()];
++        for (int i = 0; i < columnHandles.size(); i++) {
++            GithubColumnHandle columnHandle = columnHandles.get(i);
++            fieldToColumnName[i] = columnHandle.getColumnName();
++        }
++
++        byte[] json = client.getContent(sourceUri, token);
++        List<Map<String, Object>> result = GithubClient.parseJsonBytesToRecordList(json);
++
++        rows = result.iterator();
++        totalBytes = json.length;
++    }
++
++    @Override
++    public long getTotalBytes()
++    {
++        return totalBytes;
++    }
++
++    @Override
++    public long getCompletedBytes()
++    {
++        return totalBytes;
++    }
++
++    @Override
++    public long getReadTimeNanos()
++    {
++        return 0;
++    }
++
++    @Override
++    public Type getType(int field)
++    {
++        checkArgument(field < columnHandles.size(), "Invalid field index");
++        return columnHandles.get(field).getColumnType();
++    }
++
++    @Override
++    public boolean advanceNextPosition()
++    {
++        if (!rows.hasNext()) {
++            return false;
++        }
++        row = rows.next();
++        return true;
++    }
++
++    private String getFieldValue(int field)
++    {
++        checkState(row != null, "Cursor has not been advanced yet");
++
++        String columnName = fieldToColumnName[field];
++        return row.get(columnName).toString();
++    }
++
++    @Override
++    public boolean getBoolean(int field)
++    {
++        checkFieldType(field, BOOLEAN);
++        return Boolean.parseBoolean(getFieldValue(field));
++    }
++
++    @Override
++    public long getLong(int field)
++    {
++        checkFieldType(field, BIGINT);
++        return Long.parseLong(getFieldValue(field));
++    }
++
++    @Override
++    public double getDouble(int field)
++    {
++        checkFieldType(field, DOUBLE);
++        return Double.parseDouble(getFieldValue(field));
++    }
++
++    @Override
++    public Slice getSlice(int field)
++    {
++        checkFieldType(field, createUnboundedVarcharType());
++        return Slices.utf8Slice(getFieldValue(field));
++    }
++
++    @Override
++    public Object getObject(int field)
++    {
++        throw new UnsupportedOperationException();
++    }
++
++    @Override
++    public boolean isNull(int field)
++    {
++        checkArgument(field < columnHandles.size(), "Invalid field index");
++        return Strings.isNullOrEmpty(getFieldValue(field));
++    }
++
++    private void checkFieldType(int field, Type expected)
++    {
++        Type actual = getType(field);
++        checkArgument(actual.equals(expected), "Expected field %s to be type %s but is %s", field, expected, actual);
++    }
++
++    @Override
++    public void close()
++    {
++    }
++}
+diff --git a/presto-github/src/main/java/com.facebook.presto.github/GithubRecordSet.java b/presto-github/src/main/java/com.facebook.presto.github/GithubRecordSet.java
+new file mode 100644
+index 0000000000..156467e59b
+--- /dev/null
++++ b/presto-github/src/main/java/com.facebook.presto.github/GithubRecordSet.java
+@@ -0,0 +1,60 @@
++/*
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package com.facebook.presto.github;
++
++import com.facebook.presto.spi.RecordCursor;
++import com.facebook.presto.spi.RecordSet;
++import com.facebook.presto.spi.type.Type;
++import com.google.common.collect.ImmutableList;
++
++import java.net.URI;
++import java.util.List;
++
++import static java.util.Objects.requireNonNull;
++
++public class GithubRecordSet
++        implements RecordSet
++{
++    private final List<GithubColumnHandle> columnHandles;
++    private final List<Type> columnTypes;
++    private final GithubClient client;
++    private final URI uri;
++    private String token;
++
++    public GithubRecordSet(GithubSplit split, List<GithubColumnHandle> columnHandles, GithubClient client)
++    {
++        requireNonNull(split, "split is null");
++        this.columnHandles = requireNonNull(columnHandles, "column handles is null");
++        ImmutableList.Builder<Type> types = ImmutableList.builder();
++        for (GithubColumnHandle column : columnHandles) {
++            types.add(column.getColumnType());
++        }
++        this.columnTypes = types.build();
++        this.uri = split.getUri();
++        this.token = split.getToken();
++        this.client = client;
++    }
++
++    @Override
++    public List<Type> getColumnTypes()
++    {
++        return columnTypes;
++    }
++
++    @Override
++    public RecordCursor cursor()
++    {
++        return new GithubRecordCursor(columnHandles, client, uri, token);
++    }
++}
+diff --git a/presto-github/src/main/java/com.facebook.presto.github/GithubRecordSetProvider.java b/presto-github/src/main/java/com.facebook.presto.github/GithubRecordSetProvider.java
+new file mode 100644
+index 0000000000..dd745abe18
+--- /dev/null
++++ b/presto-github/src/main/java/com.facebook.presto.github/GithubRecordSetProvider.java
+@@ -0,0 +1,59 @@
++/*
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package com.facebook.presto.github;
++
++import com.facebook.presto.spi.ColumnHandle;
++import com.facebook.presto.spi.ConnectorSession;
++import com.facebook.presto.spi.ConnectorSplit;
++import com.facebook.presto.spi.RecordSet;
++import com.facebook.presto.spi.connector.ConnectorRecordSetProvider;
++import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
++import com.google.common.collect.ImmutableList;
++
++import javax.inject.Inject;
++
++import java.util.List;
++
++import static com.facebook.presto.github.Types.checkType;
++import static com.google.common.base.Preconditions.checkArgument;
++import static java.util.Objects.requireNonNull;
++
++public class GithubRecordSetProvider
++        implements ConnectorRecordSetProvider
++{
++    private final String connectorId;
++    private final GithubClient client;
++
++    @Inject
++    public GithubRecordSetProvider(GithubConnectorId connectorId, GithubClient client)
++    {
++        this.connectorId = requireNonNull(connectorId, "connectorId is null").toString();
++        this.client = client;
++    }
++
++    @Override
++    public RecordSet getRecordSet(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorSplit split, List<? extends ColumnHandle> columns)
++    {
++        requireNonNull(split, "partitionChunk is null");
++        GithubSplit githubSplit = checkType(split, GithubSplit.class, "split");
++        checkArgument(githubSplit.getConnectorId().equals(connectorId), "split is not for this connector");
++
++        ImmutableList.Builder<GithubColumnHandle> handles = ImmutableList.builder();
++        for (ColumnHandle handle : columns) {
++            handles.add(checkType(handle, GithubColumnHandle.class, "handle"));
++        }
++
++        return new GithubRecordSet(githubSplit, handles.build(), client);
++    }
++}
+diff --git a/presto-github/src/main/java/com.facebook.presto.github/GithubSchema.java b/presto-github/src/main/java/com.facebook.presto.github/GithubSchema.java
+new file mode 100644
+index 0000000000..e169d4889b
+--- /dev/null
++++ b/presto-github/src/main/java/com.facebook.presto.github/GithubSchema.java
+@@ -0,0 +1,39 @@
++package com.facebook.presto.github;
++/*
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++import com.fasterxml.jackson.annotation.JsonCreator;
++import com.fasterxml.jackson.annotation.JsonProperty;
++
++import static com.google.common.base.Preconditions.checkArgument;
++import static com.google.common.base.Strings.isNullOrEmpty;
++import static java.util.Objects.requireNonNull;
++
++public class GithubSchema
++{
++    private final String name;
++
++    @JsonCreator
++    public GithubSchema(@JsonProperty("name") String name)
++    {
++        checkArgument(!isNullOrEmpty(name), "name is null or is empty");
++        this.name = requireNonNull(name, "name is null");
++    }
++
++    @JsonProperty
++    public String getName()
++    {
++        return name;
++    }
++}
+diff --git a/presto-github/src/main/java/com.facebook.presto.github/GithubSplit.java b/presto-github/src/main/java/com.facebook.presto.github/GithubSplit.java
+new file mode 100644
+index 0000000000..092dc4a83a
+--- /dev/null
++++ b/presto-github/src/main/java/com.facebook.presto.github/GithubSplit.java
+@@ -0,0 +1,103 @@
++package com.facebook.presto.github;
++/*
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++import com.facebook.presto.spi.ConnectorSplit;
++import com.facebook.presto.spi.HostAddress;
++import com.fasterxml.jackson.annotation.JsonCreator;
++import com.fasterxml.jackson.annotation.JsonProperty;
++import com.google.common.collect.ImmutableList;
++
++import java.net.URI;
++import java.util.List;
++
++import static java.util.Objects.requireNonNull;
++
++public class GithubSplit
++        implements ConnectorSplit
++{
++    private final String connectorId;
++    private final String schemaName;
++    private final String tableName;
++    private final URI uri;
++    private final String token;
++    private final boolean remotelyAccessible;
++    private final List<HostAddress> addresses;
++
++    @JsonCreator
++    public GithubSplit(
++            @JsonProperty("connectorId") String connectorId,
++            @JsonProperty("schemaName") String schemaName,
++            @JsonProperty("tableName") String tableName,
++            @JsonProperty("uri") URI uri,
++            @JsonProperty("token") String token)
++    {
++        this.connectorId = requireNonNull(connectorId, "connector id is null");
++        this.schemaName = requireNonNull(schemaName, "schema name is null");
++        this.tableName = requireNonNull(tableName, "table name is null");
++        this.uri = uri;
++        this.token = token;
++        remotelyAccessible = true;
++        addresses = ImmutableList.of();
++    }
++
++    @JsonProperty
++    public String getConnectorId()
++    {
++        return connectorId;
++    }
++
++    @JsonProperty
++    public String getSchemaName()
++    {
++        return schemaName;
++    }
++
++    @JsonProperty
++    public String getTableName()
++    {
++        return tableName;
++    }
++
++    @JsonProperty
++    public URI getUri()
++    {
++        return uri;
++    }
++
++    @JsonProperty
++    public String getToken()
++    {
++        return token;
++    }
++
++    @Override
++    public boolean isRemotelyAccessible()
++    {
++        // only http or https is remotely accessible
++        return remotelyAccessible;
++    }
++
++    @Override
++    public List<HostAddress> getAddresses()
++    {
++        return addresses;
++    }
++
++    @Override
++    public Object getInfo()
++    {
++        return this;
++    }
++}
+diff --git a/presto-github/src/main/java/com.facebook.presto.github/GithubSplitManager.java b/presto-github/src/main/java/com.facebook.presto.github/GithubSplitManager.java
+new file mode 100644
+index 0000000000..3ef26d376b
+--- /dev/null
++++ b/presto-github/src/main/java/com.facebook.presto.github/GithubSplitManager.java
+@@ -0,0 +1,88 @@
++/*
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package com.facebook.presto.github;
++
++import com.facebook.presto.spi.ConnectorSession;
++import com.facebook.presto.spi.ConnectorSplit;
++import com.facebook.presto.spi.ConnectorSplitSource;
++import com.facebook.presto.spi.ConnectorTableLayoutHandle;
++import com.facebook.presto.spi.FixedSplitSource;
++import com.facebook.presto.spi.connector.ConnectorSplitManager;
++import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
++import com.github.fge.uritemplate.URITemplateException;
++import com.github.fge.uritemplate.vars.VariableMap;
++import com.google.common.base.Throwables;
++
++import javax.inject.Inject;
++
++import java.net.URI;
++import java.net.URISyntaxException;
++import java.util.ArrayList;
++import java.util.Collections;
++import java.util.List;
++
++import static com.facebook.presto.github.Types.checkType;
++import static com.google.common.base.Preconditions.checkState;
++import static java.util.Objects.requireNonNull;
++
++public class GithubSplitManager
++        implements ConnectorSplitManager
++{
++    private final String connectorId;
++    private final GithubClient githubClient;
++    private final GithubConfig config;
++
++    @Inject
++    public GithubSplitManager(GithubConnectorId connectorId, GithubClient githubClient, GithubConfig config)
++    {
++        this.connectorId = requireNonNull(connectorId, "connectorId is null").toString();
++        this.githubClient = requireNonNull(githubClient, "client is null");
++        this.config = requireNonNull(config, "config is null");
++    }
++
++    @Override
++    public ConnectorSplitSource getSplits(ConnectorTransactionHandle handle, ConnectorSession session, ConnectorTableLayoutHandle layout)
++    {
++        GithubTableLayoutHandle layoutHandle = checkType(layout, GithubTableLayoutHandle.class, "layout");
++        GithubTableHandle tableHandle = layoutHandle.getTable();
++        GithubTable table = githubClient.getTable(tableHandle.getSchemaName(), tableHandle.getTableName());
++        // this can happen if table is removed during a query
++        checkState(table != null, "Table %s.%s no longer exists", tableHandle.getSchemaName(), tableHandle.getTableName());
++
++        VariableMap variables = VariableMap.newBuilder()
++                .addScalarValue("owner", config.getOwner())
++                .addScalarValue("repo", tableHandle.getSchemaName())
++                .addScalarValue("username", config.getUsername())
++                .addScalarValue("token", config.getToken())
++                .freeze();
++
++        URI uri;
++        List<ConnectorSplit> splits = new ArrayList<>();
++        try {
++            uri = table.getSourceTemplate().toURI(variables);
++            int lastPage = githubClient.getLastPage(uri, config.getToken());
++
++            for (int i = 1; i <= lastPage; i++) {
++                URI uriPage = new URI(uri.toString() + "?page=" + i);
++                splits.add(new GithubSplit(connectorId, tableHandle.getSchemaName(), tableHandle.getTableName(), uriPage, config.getToken()));
++            }
++        }
++        catch (URITemplateException | URISyntaxException e) {
++            throw Throwables.propagate(e);
++        }
++        Collections.shuffle(splits);
++
++        return new FixedSplitSource(splits);
++    }
++}
+diff --git a/presto-github/src/main/java/com.facebook.presto.github/GithubTable.java b/presto-github/src/main/java/com.facebook.presto.github/GithubTable.java
+new file mode 100644
+index 0000000000..d87c8b91ba
+--- /dev/null
++++ b/presto-github/src/main/java/com.facebook.presto.github/GithubTable.java
+@@ -0,0 +1,67 @@
++/*
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package com.facebook.presto.github;
++
++import com.facebook.presto.spi.ColumnMetadata;
++import com.facebook.presto.spi.type.BigintType;
++import com.facebook.presto.spi.type.VarcharType;
++import com.fasterxml.jackson.annotation.JsonCreator;
++import com.fasterxml.jackson.annotation.JsonProperty;
++import com.github.fge.uritemplate.URITemplate;
++import com.google.common.collect.ImmutableList;
++
++import java.util.List;
++
++public class GithubTable
++{
++    private final String name;
++    private final List<GithubColumn> columns;
++    private final List<ColumnMetadata> columnsMetadata;
++    private URITemplate sourceTemplate;
++
++    @JsonCreator
++    public GithubTable(URITemplate sourceTemplate)
++    {
++        this.sourceTemplate = sourceTemplate;
++        this.name = "stargazers";
++        this.columns = ImmutableList.of(new GithubColumn("login", VarcharType.VARCHAR), new GithubColumn("id", BigintType.BIGINT));
++        ImmutableList.Builder<ColumnMetadata> columnsMetadata = ImmutableList.builder();
++        for (GithubColumn column : this.columns) {
++            columnsMetadata.add(new ColumnMetadata(column.getName(), column.getType()));
++        }
++        this.columnsMetadata = columnsMetadata.build();
++    }
++
++    @JsonProperty
++    public String getName()
++    {
++        return name;
++    }
++
++    @JsonProperty
++    public List<GithubColumn> getColumns()
++    {
++        return columns;
++    }
++
++    public List<ColumnMetadata> getColumnsMetadata()
++    {
++        return columnsMetadata;
++    }
++
++    public URITemplate getSourceTemplate()
++    {
++        return sourceTemplate;
++    }
++}
+diff --git a/presto-github/src/main/java/com.facebook.presto.github/GithubTableHandle.java b/presto-github/src/main/java/com.facebook.presto.github/GithubTableHandle.java
+new file mode 100644
+index 0000000000..ace80b95df
+--- /dev/null
++++ b/presto-github/src/main/java/com.facebook.presto.github/GithubTableHandle.java
+@@ -0,0 +1,94 @@
++/*
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package com.facebook.presto.github;
++
++import com.facebook.presto.spi.ConnectorTableHandle;
++import com.facebook.presto.spi.SchemaTableName;
++import com.fasterxml.jackson.annotation.JsonCreator;
++import com.fasterxml.jackson.annotation.JsonProperty;
++import com.google.common.base.Joiner;
++
++import java.util.Objects;
++
++import static java.util.Objects.requireNonNull;
++
++public final class GithubTableHandle
++        implements ConnectorTableHandle
++{
++    private final String connectorId;
++    private final String schemaName;
++    private final String tableName;
++
++    @JsonCreator
++    public GithubTableHandle(
++            @JsonProperty("connectorId") String connectorId,
++            @JsonProperty("schemaName") String schemaName,
++            @JsonProperty("tableName") String tableName)
++    {
++        this.connectorId = requireNonNull(connectorId, "connectorId is null");
++        this.schemaName = requireNonNull(schemaName, "schemaName is null");
++        this.tableName = requireNonNull(tableName, "tableName is null");
++    }
++
++    @JsonProperty
++    public String getConnectorId()
++    {
++        return connectorId;
++    }
++
++    @JsonProperty
++    public String getSchemaName()
++    {
++        return schemaName;
++    }
++
++    @JsonProperty
++    public String getTableName()
++    {
++        return tableName;
++    }
++
++    public SchemaTableName toSchemaTableName()
++    {
++        return new SchemaTableName(schemaName, tableName);
++    }
++
++    @Override
++    public int hashCode()
++    {
++        return Objects.hash(connectorId, schemaName, tableName);
++    }
++
++    @Override
++    public boolean equals(Object obj)
++    {
++        if (this == obj) {
++            return true;
++        }
++        if ((obj == null) || (getClass() != obj.getClass())) {
++            return false;
++        }
++
++        GithubTableHandle other = (GithubTableHandle) obj;
++        return Objects.equals(this.connectorId, other.connectorId) &&
++                Objects.equals(this.schemaName, other.schemaName) &&
++                Objects.equals(this.tableName, other.tableName);
++    }
++
++    @Override
++    public String toString()
++    {
++        return Joiner.on(":").join(connectorId, schemaName, tableName);
++    }
++}
+diff --git a/presto-github/src/main/java/com.facebook.presto.github/GithubTableLayoutHandle.java b/presto-github/src/main/java/com.facebook.presto.github/GithubTableLayoutHandle.java
+new file mode 100644
+index 0000000000..a8d09d2491
+--- /dev/null
++++ b/presto-github/src/main/java/com.facebook.presto.github/GithubTableLayoutHandle.java
+@@ -0,0 +1,63 @@
++package com.facebook.presto.github;
++/*
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++import com.facebook.presto.spi.ConnectorTableLayoutHandle;
++import com.fasterxml.jackson.annotation.JsonCreator;
++import com.fasterxml.jackson.annotation.JsonProperty;
++
++import java.util.Objects;
++
++public class GithubTableLayoutHandle
++        implements ConnectorTableLayoutHandle
++{
++    private final GithubTableHandle table;
++
++    @JsonCreator
++    public GithubTableLayoutHandle(@JsonProperty("table") GithubTableHandle table)
++    {
++        this.table = table;
++    }
++
++    @JsonProperty
++    public GithubTableHandle getTable()
++    {
++        return table;
++    }
++
++    @Override
++    public boolean equals(Object o)
++    {
++        if (this == o) {
++            return true;
++        }
++        if (o == null || getClass() != o.getClass()) {
++            return false;
++        }
++        GithubTableLayoutHandle that = (GithubTableLayoutHandle) o;
++        return Objects.equals(table, that.table);
++    }
++
++    @Override
++    public int hashCode()
++    {
++        return Objects.hash(table);
++    }
++
++    @Override
++    public String toString()
++    {
++        return table.toString();
++    }
++}
+diff --git a/presto-github/src/main/java/com.facebook.presto.github/GithubTransactionHandle.java b/presto-github/src/main/java/com.facebook.presto.github/GithubTransactionHandle.java
+new file mode 100644
+index 0000000000..63f7802156
+--- /dev/null
++++ b/presto-github/src/main/java/com.facebook.presto.github/GithubTransactionHandle.java
+@@ -0,0 +1,23 @@
++/*
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package com.facebook.presto.github;
++
++import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
++
++public enum GithubTransactionHandle
++        implements ConnectorTransactionHandle
++{
++    INSTANCE
++}
+diff --git a/presto-github/src/main/java/com.facebook.presto.github/Types.java b/presto-github/src/main/java/com.facebook.presto.github/Types.java
+new file mode 100644
+index 0000000000..83b2fe9dd7
+--- /dev/null
++++ b/presto-github/src/main/java/com.facebook.presto.github/Types.java
+@@ -0,0 +1,35 @@
++/*
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package com.facebook.presto.github;
++
++import static com.google.common.base.Preconditions.checkArgument;
++import static java.lang.String.format;
++
++final class Types
++{
++    private Types() {}
++
++    public static <A, B extends A> B checkType(A value, Class<B> target, String name)
++    {
++        if (value == null) {
++            throw new NullPointerException(format("%s is null", name));
++        }
++        checkArgument(target.isInstance(value),
++                "%s must be of type %s, not %s",
++                name,
++                target.getName(),
++                value.getClass().getName());
++        return target.cast(value);
++    }
++}
+diff --git a/presto-main/etc/catalog/github.properties b/presto-main/etc/catalog/github.properties
+new file mode 100644
+index 0000000000..fb10caf508
+--- /dev/null
++++ b/presto-main/etc/catalog/github.properties
+@@ -0,0 +1,16 @@
++#
++# WARNING
++# ^^^^^^^
++# This configuration file is for development only and should NOT be used be
++# used in production. For example configuration, see the Presto documentation.
++#
++
++connector.name=github
++github-apiroot=https://api.git.corp.yahoo.co.jp
++github-owner=rokumura
++github-username=mjung
++github-token=06cc42236bf2c6a8dd1e525f5b360830649032bb
++#github-apiroot=https://api.github.com
++#github-owner=prestodb
++#github-username=hikei98
++#github-token=c2bcc0694018ee0c1db31d94e8fadc39a95c771e
+diff --git a/presto-main/etc/config.properties b/presto-main/etc/config.properties
+index f4fb6324c0..1199908b38 100644
+--- a/presto-main/etc/config.properties
++++ b/presto-main/etc/config.properties
+@@ -36,7 +36,8 @@ plugin.bundles=\
+   ../presto-tpch/pom.xml, \
+   ../presto-local-file/pom.xml, \
+   ../presto-mysql/pom.xml,\
+-  ../presto-postgresql/pom.xml
++  ../presto-postgresql/pom.xml, \
++  ../presto-github/pom.xml
+ 
+ presto.version=testversion
+ distributed-joins-enabled=true

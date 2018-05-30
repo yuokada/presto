@@ -38,7 +38,8 @@ public class GithubConnectorFactory
     @Override
     public ConnectorHandleResolver getHandleResolver()
     {
-        return new GithubHandleResolver();
+        return null;
+//        return new GithubHandleResolver();
     }
 
     @Override
